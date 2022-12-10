@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug swiftzbot",
+            "program": "${workspaceFolder:Swiftzbot}/.build/debug/swiftzbot",
+            "args": [],
+            "cwd": "${workspaceFolder:Swiftzbot}",
+            "preLaunchTask": "swift: Build Debug swiftzbot"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Release swiftzbot",
+            "program": "${workspaceFolder:Swiftzbot}/.build/release/swiftzbot",
+            "args": [],
+            "cwd": "${workspaceFolder:Swiftzbot}",
+            "preLaunchTask": "swift: Build Release swiftzbot"
+        }
+    ]
+}
