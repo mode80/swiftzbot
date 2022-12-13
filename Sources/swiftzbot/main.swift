@@ -135,9 +135,17 @@ func factorial(_ n:UInt) -> UInt {
 // for fast access later, this generates an array of dievals in sorted form, 
 // along with each's unique "ID" between 0-252, indexed by DieVals.data
 func cache_sorted_dievals() { 
+    
+    //init SORTED_DIEVALS
+    SORTED_DIEVALS = [DieValsID](unsafeUninitializedCapacity: 32767) { buffer, initializedCount in
+        for i in 0..<32767 { buffer[i] = DieValsID() } // TODO is this necessary?
+        initializedCount = 32767
+    }
+
+    // TODO move all this inside block above?
     SORTED_DIEVALS[0] = DieValsID(); // first one is for the special wildcard 
-    var one_to_six = [u8](1...6)
-    let combos = combos_with_rep(&one_to_six,5) 
+    let one_to_six = [u8](1...6)
+    let combos = combos_with_rep(one_to_six,5) 
     for (i, combo) in combos.enumerated() {
         let dv_combo = DieVals(combo);
         let int_perms = combo.uniquePermutations()
@@ -146,25 +154,49 @@ func cache_sorted_dievals() {
     }
 }
 
-func combos_with_rep<Element>(_ items :inout[Element], _ n :Int) -> [[Element]] { // from https://rosettacode.org/wiki/Combinations_with_repetitions#Swift  
-    if n == 0 { return [[]] } else {
-        var combos = [[Element]]()
-        while let element = items.last {
-            combos.append(combos_with_rep(&items, n-1).map{ $0 + [element] as! Element }) 
-            items.removeLast()
-        }
-        return combos
-    }
+func combos_with_rep<T>(elements: ArraySlice<T>, k: Int) -> [[T]] {
+    if k == 0 { return [[]] }
+    guard let first = elements.first else { return [] }
+    let head = [first]
+    let subcombos = combos_with_rep(elements: elements, k: k - 1)
+    var ret = subcombos.map { head + $0 }
+    ret += combos_with_rep(elements: elements.dropFirst(), k: k)
+    return ret
+}
+
+func combos_with_rep<T>(_ elements: Array<T>, _ k: Int) -> [[T]] {
+    return combos_with_rep(elements: ArraySlice(elements), k: k)
 }
 
 //preps the caches of roll outcomes data for every possible 5-die selection, where '0' represents an unselected die """
 func cache_roll_outcomes_data() { 
+
+    OUTCOME_DIEVALS_DATA = [u16](unsafeUninitializedCapacity: 1683) { buffer, initializedCount in
+        for i in 0..<1683{ buffer[i] = 0 } // TODO is this necessary?
+        initializedCount = 1683 
+    }
+
+    OUTCOME_MASK_DATA = [u16](unsafeUninitializedCapacity: 1683) { buffer, initializedCount in
+        for i in 0..<1683{ buffer[i] = 0 } // TODO is this necessary?
+        initializedCount = 1683 
+    }
+
+    OUTCOME_ARRANGEMENTS = [f32](unsafeUninitializedCapacity: 1683) { buffer, initializedCount in
+        for i in 0..<1683{ buffer[i] = 0.0 } // TODO is this necessary?
+        initializedCount = 1683 
+    }
+
+    OUTCOMES = [Outcome](unsafeUninitializedCapacity: 1683) { buffer, initializedCount in
+        for i in 0..<1683{ buffer[i] = Outcome() } // TODO is this necessary?
+        initializedCount = 1683 
+    }
+
     var i=0 
     let idx_combos = powerset(Set(0...4))
-    var one_thru_six:[u8] = [1,2,3,4,5,6]
+    let one_thru_six:[u8] = [1,2,3,4,5,6]
     for idx_combo_vec in idx_combos { 
         var dievals_vec:[DieVal] = [0,0,0,0,0] // new DieVal[5]
-        for dievals_combo_vec in combos_with_rep(&one_thru_six, idx_combo_vec.count) {
+        for dievals_combo_vec in combos_with_rep(one_thru_six, idx_combo_vec.count) {
             var mask_vec:[u8] = [0b111,0b111,0b111,0b111,0b111]
             for (j, val) in dievals_combo_vec.enumerated() {
                 let idx = idx_combo_vec[j]-1
@@ -175,11 +207,7 @@ func cache_roll_outcomes_data() {
             OUTCOME_DIEVALS_DATA[i] = DieVals(dievals_vec).data
             OUTCOME_MASK_DATA[i] = DieVals(mask_vec).data
             OUTCOME_ARRANGEMENTS[i] = arrangement_count
-            OUTCOMES[i] = Outcome( 
-                dievals:DieVals(dievals_vec), 
-                mask:DieVals(mask_vec), 
-                arrangements:arrangement_count
-            )
+            OUTCOMES[i] = Outcome( DieVals(dievals_vec), DieVals(mask_vec), arrangement_count)
             i+=1;
         } 
     } 
@@ -265,16 +293,12 @@ struct Outcome {
     var dievals:DieVals = DieVals()
     var mask:DieVals = DieVals()// stores a pre-made mask for blitting this outcome onto a GameState.DieVals.data u16 later
     var arrangements:f32 = 0.0 // how many indistinguisable ways can these dievals be arranged (ie swapping identical dievals)
-    // func Outcome() { 
-    //     this.dievals = new DieVals();
-    //     this.mask = new DieVals();
-    //     this.arrangements = 0;
-    // }
-    // func outcome (DieVals dievals, DieVals mask, f32 arrangements) {
-    //     this.dievals = dievals;
-    //     this.mask = mask;
-    //     this.arrangements = arrangements;
-    // }
+    init() { } 
+    init(_ dievals:DieVals, _ mask:DieVals, _ arrangements:f32) { 
+        self.dievals = dievals 
+        self.mask = mask 
+        self.arrangements = arrangements 
+    }
 }
 
 //#=-------------------------------------------------------------
