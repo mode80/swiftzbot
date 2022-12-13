@@ -18,6 +18,13 @@ typealias DieVal = Byte
 typealias Slot = Byte
 
 //-------------------------------------------------------------
+// TEST CODE 
+//-------------------------------------------------------------
+
+// var c = combos_with_rep([u8](1...6), 5)
+// print(c)
+
+//-------------------------------------------------------------
 // MAIN 
 //-------------------------------------------------------------
 main() 
@@ -48,6 +55,7 @@ func main() {
 //-------------------------------------------------------------
 
 func init_main() { 
+    cache_selection_ranges(); 
     cache_sorted_dievals(); 
     cache_roll_outcomes_data(); 
 }
@@ -74,27 +82,29 @@ var NEWVALS_DATA_BUFFER = [[u16]]() //[1683,Environment.ProcessorCount];
 var EVS_TIMES_ARRANGEMENTS_BUFFER = [[f32]]() //= new f32[1683,Environment.ProcessorCount]; 
 var SORTED_DIEVALS = [DieValsID]() //new DieValsID[32767];
 var RANGE_IDX_FOR_SELECTION = [0,1,2,3,7,4,8,11,17,5,9,12,20,14,18,23,27,6,10,13,19,15,21,24,28,16,22,25,29,26,30,31] 
-var SELECTION_RANGES = selection_ranges() 
+var SELECTION_RANGES = [Range<Int>]() //new Range[32];  
 var OUTCOMES = [Outcome]() //new Outcome[1683]    
 var OUTCOME_DIEVALS_DATA = [u16]() //new u16[1683]  //these 3 arrays mirror that in OUTCOMES but are contiguous and faster to access
 var OUTCOME_MASK_DATA = [u16]() // new u16[1683] 
 var OUTCOME_ARRANGEMENTS = [f32]() //new f32[1683] 
 
 // this generates the ranges that correspond to the outcomes, within the set of all outcomes, indexed by a give selection 
-func selection_ranges() -> [Range<Int>]  {
-    var sel_ranges = [Range<Int>]() //new Range[32];
+func cache_selection_ranges() {
+
+    SELECTION_RANGES = [Range<Int>](unsafeUninitializedCapacity: 32) { $1 = 32 }
+
+    // var sel_ranges = [Range<Int>]() //new Range[32];
     var s = 0
-    sel_ranges[0] = 0..<1;
+    SELECTION_RANGES[0] = 0..<1;
     let combos = powerset([0,1,2,3,4])// (new List<int>(){0,1,2,3,4}).powerset();
 
     var i = 0;
     for _ in combos {
         let count = Int( n_take_r(6, 5, order_matters:false, with_replacement:true) )
-        sel_ranges[i] = s..<(s + count)
+        SELECTION_RANGES[i] = s..<(s + count)
         s += count
         i+=1
     } 
-    return sel_ranges;
 }
 
 func powerset<T>(_ elements: Set<T>) -> [[T]] { // from https://codereview.stackexchange.com/questions/263840/generate-all-subsets-of-a-set
@@ -137,10 +147,7 @@ func factorial(_ n:UInt) -> UInt {
 func cache_sorted_dievals() { 
     
     //init SORTED_DIEVALS
-    SORTED_DIEVALS = [DieValsID](unsafeUninitializedCapacity: 32767) { buffer, initializedCount in
-        for i in 0..<32767 { buffer[i] = DieValsID() } // TODO is this necessary?
-        initializedCount = 32767
-    }
+    SORTED_DIEVALS = [DieValsID](unsafeUninitializedCapacity: 32767) { $1 = 32767 }
 
     // TODO move all this inside block above?
     SORTED_DIEVALS[0] = DieValsID(); // first one is for the special wildcard 
@@ -171,25 +178,10 @@ func combos_with_rep<T>(_ elements: Array<T>, _ k: Int) -> [[T]] {
 //preps the caches of roll outcomes data for every possible 5-die selection, where '0' represents an unselected die """
 func cache_roll_outcomes_data() { 
 
-    OUTCOME_DIEVALS_DATA = [u16](unsafeUninitializedCapacity: 1683) { buffer, initializedCount in
-        for i in 0..<1683{ buffer[i] = 0 } // TODO is this necessary?
-        initializedCount = 1683 
-    }
-
-    OUTCOME_MASK_DATA = [u16](unsafeUninitializedCapacity: 1683) { buffer, initializedCount in
-        for i in 0..<1683{ buffer[i] = 0 } // TODO is this necessary?
-        initializedCount = 1683 
-    }
-
-    OUTCOME_ARRANGEMENTS = [f32](unsafeUninitializedCapacity: 1683) { buffer, initializedCount in
-        for i in 0..<1683{ buffer[i] = 0.0 } // TODO is this necessary?
-        initializedCount = 1683 
-    }
-
-    OUTCOMES = [Outcome](unsafeUninitializedCapacity: 1683) { buffer, initializedCount in
-        for i in 0..<1683{ buffer[i] = Outcome() } // TODO is this necessary?
-        initializedCount = 1683 
-    }
+    OUTCOME_DIEVALS_DATA = [u16](unsafeUninitializedCapacity: 1683) { $1 = 1683 }
+    OUTCOME_MASK_DATA = [u16](unsafeUninitializedCapacity: 1683) { $1 = 1683 }
+    OUTCOME_ARRANGEMENTS = [f32](unsafeUninitializedCapacity: 1683) { $1 = 1683 }
+    OUTCOMES = [Outcome](unsafeUninitializedCapacity: 1683) { $1 = 1683 }
 
     var i=0 
     let idx_combos = powerset(Set(0...4))
@@ -199,7 +191,7 @@ func cache_roll_outcomes_data() {
         for dievals_combo_vec in combos_with_rep(one_thru_six, idx_combo_vec.count) {
             var mask_vec:[u8] = [0b111,0b111,0b111,0b111,0b111]
             for (j, val) in dievals_combo_vec.enumerated() {
-                let idx = idx_combo_vec[j]-1
+                let idx = idx_combo_vec[j]
                 dievals_vec[idx] = DieVal(val) 
                 mask_vec[idx]=DieVal()
             } 
@@ -659,10 +651,7 @@ struct App{
         self.bar = bar
 
         // 2^30 slots hold all unique game states
-        ev_cache = Array<ChoiceEV>(unsafeUninitializedCapacity: 2**30) { buffer, initializedCount in 
-            for i in 0..<2**30 { buffer[i] = ChoiceEV(0,0) } // TODO is this necessary?
-            initializedCount = 2**30 
-        }
+        ev_cache = Array<ChoiceEV>(unsafeUninitializedCapacity: 2**30) { $1 = 2**30 }
     } 
 
     func output(state :GameState, choice_ev :ChoiceEV ){ 

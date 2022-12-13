@@ -4,18 +4,18 @@
             "type": "lldb",
             "request": "launch",
             "name": "Debug swiftzbot",
-            "program": "${workspaceFolder:Swiftzbot}/.build/debug/swiftzbot",
+            "program": "${workspaceFolder:swiftzbot}/.build/debug/swiftzbot",
             "args": [],
-            "cwd": "${workspaceFolder:Swiftzbot}",
+            "cwd": "${workspaceFolder:swiftzbot}",
             "preLaunchTask": "swift: Build Debug swiftzbot"
         },
         {
             "type": "lldb",
             "request": "launch",
             "name": "Release swiftzbot",
-            "program": "${workspaceFolder:Swiftzbot}/.build/release/swiftzbot",
+            "program": "${workspaceFolder:swiftzbot}/.build/release/swiftzbot",
             "args": [],
-            "cwd": "${workspaceFolder:Swiftzbot}",
+            "cwd": "${workspaceFolder:swiftzbot}",
             "preLaunchTask": "swift: Build Release swiftzbot"
         }
     ]
