@@ -37,26 +37,26 @@ func ** (_ base: Int, _ exp: Int) -> Int { Int(pow(Float(base), Float(exp))) }
 
 
 var cores = ProcessInfo().activeProcessorCount
-var OUTCOME_EVS_BUFFER = [[f32]]() //  = new f32[1683,Environment.ProcessorCount]; 
-var NEWVALS_DATA_BUFFER = [[u16]]() //[1683,Environment.ProcessorCount]; 
-var EVS_TIMES_ARRANGEMENTS_BUFFER = [[f32]]() //= new f32[1683,Environment.ProcessorCount]; 
-var SORTED_DIEVALS = [DieValsID]() //new DieValsID[32767];
+var OUTCOME_EVS_BUFFER = (0...cores).map { _ in [f32](unsafeUninitializedCapacity:1683){$1=1683} }//  = new f32[1683,Environment.ProcessorCount];
+var NEWVALS_DATA_BUFFER = (0...cores).map { _ in [u16](unsafeUninitializedCapacity:1683){$1=1683} }  //[1683,Environment.ProcessorCount]; 
+var EVS_TIMES_ARRANGEMENTS_BUFFER = (0...cores).map { _ in [f32](unsafeUninitializedCapacity:1683){$1=1683} }//= new f32[1683,Environment.ProcessorCount]; 
+var SORTED_DIEVALS = [DieValsID](unsafeUninitializedCapacity:32767){$1=32767}  //new DieValsID[32767];
 var RANGE_IDX_FOR_SELECTION = [0,1,2,3,7,4,8,11,17,5,9,12,20,14,18,23,27,6,10,13,19,15,21,24,28,16,22,25,29,26,30,31] 
-var SELECTION_RANGES = [Range<Int>]() //new Range[32];  
-var OUTCOMES = [Outcome]() //new Outcome[1683]    
-var OUTCOME_DIEVALS_DATA = [u16]() //new u16[1683]  //these 3 arrays mirror that in OUTCOMES but are contiguous and faster to access
-var OUTCOME_MASK_DATA = [u16]() // new u16[1683] 
-var OUTCOME_ARRANGEMENTS = [f32]() //new f32[1683] 
+var SELECTION_RANGES = [Range<Int>](unsafeUninitializedCapacity:32){$1=32}  //new Range[32];  
+var OUTCOMES = [Outcome](unsafeUninitializedCapacity:1683){$1=1683}  //new Outcome[1683]    
+var OUTCOME_DIEVALS_DATA = [u16](unsafeUninitializedCapacity:1683){$1=1683} //new u16[1683]  //these 3 arrays mirror that in OUTCOMES but are contiguous and faster to access
+var OUTCOME_MASK_DATA = [u16](unsafeUninitializedCapacity:1683){$1=1683}  // new u16[1683] 
+var OUTCOME_ARRANGEMENTS = [f32](unsafeUninitializedCapacity:1683){$1=1683} //new f32[1683] 
 
-var ev_cache = Array<ChoiceEV>(unsafeUninitializedCapacity: 2**30) { $1 = 2**30 }// 2^30 slots hold all unique game states 
+var ev_cache = [ChoiceEV](unsafeUninitializedCapacity:2**30){$1=2**30}// 2^30 slots hold all unique game states 
 var bar = Tqdm()
 
 //-------------------------------------------------------------
 // TEST CODE 
 //-------------------------------------------------------------
 
-// var s = Slots([2,4,6,8,10,12]) 
-// print(s.description)
+// var ps = powerset([0,1,2,3,4]) 
+// print(ps)
 
 //-------------------------------------------------------------
 // MAIN 
@@ -75,21 +75,18 @@ func main(){
 
     // print_state_choices_header();
     let game = GameState( 
-        DieVals(), // five unrolled dice
-        Slots(ACES, TWOS, THREES, FOURS, FIVES, SIXES,
-            THREE_OF_A_KIND, FOUR_OF_A_KIND, FULL_HOUSE,
-            SM_STRAIGHT, LG_STRAIGHT,
-            YAHTZEE, CHANCE
-        ), // all slots remaining in an empty scorecard
+        DieVals(3,4,4,6,6), // five unrolled dice
+        // Slots(1,2,3,4,5,6,7,8,9,10,11,12,13), // all slots in an empty scorecard
+        Slots(12), 
         0, // current upper section total
-        3, // rolls remaining
+        1, // rolls remaining
         false // yahtzee bonus available? 
     ) 
 
     init_bar_for(game)
     build_cache(game)
 
-    print(ev_cache[Int(game.id)])  // # starting game state, should have expected value of 255.5896
+    print(ev_cache[Int(game.id)])  // # starting game state, should have expected value of 254.59
 }
 
 //-------------------------------------------------------------
@@ -138,7 +135,7 @@ func build_cache(_ game :GameState) {
 
                     bar.update() // advance the progress bar 
 
-                    // # for each rolls remaining
+                    // for each rolls remaining
                     for rolls_remaining in u8(0)...u8(3) {
 
                         let dieval_combos = (rolls_remaining==3 ? placeholder_dievals_vec : all_dieval_combos);
@@ -153,15 +150,8 @@ func build_cache(_ game :GameState) {
                                 yahtzee_bonus_available,
                                 upper_total,
                                 placeholder_dievals
-                            );
-                        } // for die_combo in die_combos
-
-                    } // for each rolls_remaining
-                } // for each yahtzee_bonus_avail
-            } // for each upper total 
-        }// for each slot_vec
-    }// for each length
-
+                            )
+    } } } } } }
 
 }
 
@@ -271,8 +261,8 @@ func avg_ev(_ start_dievals :DieVals, _ selection :Selection, _ slots :Slots, _ 
     let range = outcomes_range_for(selection);
 
     for i in range { //@inbounds @simd
-        NEWVALS_DATA_BUFFER[i][threadid] = (u16)(start_dievals.data & OUTCOME_MASK_DATA[i]);
-        NEWVALS_DATA_BUFFER[i][threadid] |= OUTCOME_DIEVALS_DATA[i];
+        NEWVALS_DATA_BUFFER[threadid][i] = (u16)(start_dievals.data & OUTCOME_MASK_DATA[i]);
+        NEWVALS_DATA_BUFFER[threadid][i] |= OUTCOME_DIEVALS_DATA[i];
     } 
 
     let floor_state_id = GameState(
@@ -286,18 +276,18 @@ func avg_ev(_ start_dievals :DieVals, _ selection :Selection, _ slots :Slots, _ 
     for i in range { //@inbounds @simd
         //= gather sorted =#
             let u = i
-            let newvals_datum = Int(NEWVALS_DATA_BUFFER[u][threadid])
+            let newvals_datum = Int(NEWVALS_DATA_BUFFER[threadid][u])
             let sorted_dievals_id  = SORTED_DIEVALS[newvals_datum].id 
         //= gather ev =#
             let state_to_get_id = Int(floor_state_id) | Int(sorted_dievals_id)
             let cache_entry = ev_cache[state_to_get_id]
-            OUTCOME_EVS_BUFFER[u][threadid] = cache_entry.ev
+            OUTCOME_EVS_BUFFER[threadid][u] = cache_entry.ev
     } 
 
     for i in range { //@inbounds @simd
     // foreach(int i in range) {// we looped through die "combos" but we need to average all "perumtations" // @fastmath @inbounds @simd ivdep 
-        EVS_TIMES_ARRANGEMENTS_BUFFER[i][threadid] = OUTCOME_EVS_BUFFER[i][threadid] * OUTCOME_ARRANGEMENTS[i]
-        total_ev_for_selection +=  EVS_TIMES_ARRANGEMENTS_BUFFER[i][threadid] 
+        EVS_TIMES_ARRANGEMENTS_BUFFER[threadid][i] = OUTCOME_EVS_BUFFER[threadid][i] * OUTCOME_ARRANGEMENTS[i]
+        total_ev_for_selection +=  EVS_TIMES_ARRANGEMENTS_BUFFER[threadid][i]
         outcomes_arrangements_count += OUTCOME_ARRANGEMENTS[i] 
     } 
 
@@ -312,16 +302,13 @@ func avg_ev(_ start_dievals :DieVals, _ selection :Selection, _ slots :Slots, _ 
 // this generates the ranges that correspond to the outcomes, within the set of all outcomes, indexed by a give selection 
 func cache_selection_ranges() {
 
-    SELECTION_RANGES = [Range<Int>](unsafeUninitializedCapacity: 32) { $1 = 32 }
-
-    // var sel_ranges = [Range<Int>]() //new Range[32];
     var s = 0
-    SELECTION_RANGES[0] = 0..<1;
+    SELECTION_RANGES[0] = 0..<1
     let combos = powerset([0,1,2,3,4])// (new List<int>(){0,1,2,3,4}).powerset();
 
-    var i = 0;
-    for _ in combos {
-        let count = Int( n_take_r(6, 5, order_matters:false, with_replacement:true) )
+    var i = 0
+    for combo in combos {
+        let count = Int( n_take_r(6, UInt(combo.count), order_matters:false, with_replacement:true) )
         SELECTION_RANGES[i] = s..<(s + count)
         s += count
         i+=1
@@ -332,9 +319,6 @@ func cache_selection_ranges() {
 // along with each's unique "ID" between 0-252, indexed by DieVals.data
 func cache_sorted_dievals() { 
     
-    //init SORTED_DIEVALS
-    SORTED_DIEVALS = [DieValsID](unsafeUninitializedCapacity: 32767) { $1 = 32767 }
-
     // TODO move all this inside block above?
     SORTED_DIEVALS[0] = DieValsID(); // first one is for the special wildcard 
     let one_to_six = [u8](1...6)
@@ -350,13 +334,8 @@ func cache_sorted_dievals() {
 //preps the caches of roll outcomes data for every possible 5-die selection, where '0' represents an unselected die """
 func cache_roll_outcomes_data() { 
 
-    OUTCOME_DIEVALS_DATA = [u16](unsafeUninitializedCapacity: 1683) { $1 = 1683 }
-    OUTCOME_MASK_DATA = [u16](unsafeUninitializedCapacity: 1683) { $1 = 1683 }
-    OUTCOME_ARRANGEMENTS = [f32](unsafeUninitializedCapacity: 1683) { $1 = 1683 }
-    OUTCOMES = [Outcome](unsafeUninitializedCapacity: 1683) { $1 = 1683 }
-
     var i=0 
-    let idx_combos = powerset(Set(0...4))
+    let idx_combos = powerset([Int](0...4))
     let one_thru_six:[u8] = [1,2,3,4,5,6]
     for idx_combo_vec in idx_combos { 
         var dievals_vec:[DieVal] = [0,0,0,0,0] // new DieVal[5]
@@ -391,16 +370,18 @@ func output(state :GameState, choice_ev :ChoiceEV ){
 //  UTILS
 //-------------------------------------------------------------
 
-func powerset<T>(_ elements: Set<T>) -> [[T]] { // from https://codereview.stackexchange.com/questions/263840/generate-all-subsets-of-a-set
-    var allCombinations: [[T]] = []
-    for element in elements {
-        let oneElementCombo = [element]
-        for i in 0..<allCombinations.count {
-            allCombinations.append(allCombinations[i] + oneElementCombo)
+func powerset<T>(_ set :[T] ) -> [[T]]{
+    let size = UInt(set.count)
+    let setsize :UInt = 2**size-1//set_size of power set of a set with set_size n is (2**n -1)
+    var outerList = [[T]]()  
+    for i in 0...setsize {// Run from counter 000..0 to 111..1
+        var innerList = [T]() // Check each jth bit in the counter is set If set then add jth element from set 
+        for j in 0..<size {
+            if ((i & (1 << j)) > 0) {innerList.append(set[Int(j)])}
         }
-        allCombinations.append(oneElementCombo)
+        outerList.append(innerList)
     }
-    return allCombinations
+    return outerList;
 }
 
 // count of arrangements that can be formed from r selections, chosen from n items, 
