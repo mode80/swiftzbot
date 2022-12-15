@@ -118,7 +118,6 @@ func build_cache(_ game :GameState) {
                     output(state:state, choice_ev:choice_ev)
     } } } } 
 
-
     // for each length 
     for slots_len in 1...game.open_slots.count {//Range(1, game.open_slots.Count())  {
 
@@ -499,7 +498,17 @@ struct Outcome {
 //#=-------------------------------------------------------------
 //DieVals
 //-------------------------------------------------------------=#
-struct DieVals : Collection, CustomStringConvertible { // TODO more performant to make this lightweight Julia-like struct without the iterator baggage?
+
+// the following LLDB command will format DieVals with meaningful values in the debugger 
+/*    
+type summary add swiftzbot.DieVals --python-script 
+"v = valobj.GetChildMemberWithName('data').GetValueAsUnsigned(0); 
+d1=str(v & 0b_111); d2=str((v & 0b_111_000)>>3); d3=str((v & 0b_111_000_000)>>6); 
+d4=str((v & 0b_111_000_000_000)>>9); d5=str((v & 0b_111_000_000_000_000)>>12); return d1+d2+d3+d4+d5" 
+*/
+
+struct DieVals : Collection, CustomStringConvertible, CustomDebugStringConvertible  
+    { // TODO more performant to make this lightweight Julia-like struct without the iterator baggage?
     public var data :u16 = 0// 5 dievals, each from 0 to 6, can be encoded in 2 bytes total, each taking 3 bits
 
     //initializers
@@ -528,12 +537,19 @@ struct DieVals : Collection, CustomStringConvertible { // TODO more performant t
     public var description: String { 
         return "\(self[4])\(self[3])\(self[2])\(self[1])\(self[0])"
     }
+
+    var debugDescription: String { return description }
+
 }
 
 //-------------------------------------------------------------
-// Slots
+// SLOTS 
 // ------------------------------------------------------------
-struct Slots : Collection  {
+// the following LLDB command will format SortedSlots with meaningful values in the debugger 
+// type summary add swiftzbot.Slots --summary-string "${var.data%b}" 
+
+struct Slots : Collection, CustomStringConvertible, CustomDebugStringConvertible  
+    {
 
     public var data:u16 = 0 // 13 sorted Slots can be positionally encoded in one u16
 
@@ -638,6 +654,7 @@ struct Slots : Collection  {
         return sb
     }
 
+    var debugDescription: String { return description }
 
 }
 
