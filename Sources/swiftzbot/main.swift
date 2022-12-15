@@ -234,7 +234,7 @@ func process_dieval_combo(_ rolls_remaining :u8, _ slots_len :Int, _ slots :Slot
         let selections = rolls_remaining==3 ? u8(0b11111)...u8(0b11111) : u8(0b00000)...u8(0b11111)//TODO test hoist? //select all dice on the initial roll, else try all selections
         
         for selection in selections { // we'll try each selection against this starting dice combo  
-            let avg_ev_for_selection = avg_ev(dieval_combo, selection, slots, upper_total, next_roll,yahtzee_bonus_available, ev_cache, threadid) // @inline
+            let avg_ev_for_selection = avg_ev(dieval_combo.data, selection, slots, upper_total, next_roll,yahtzee_bonus_available, ev_cache, threadid) // @inline
             if (avg_ev_for_selection > best.ev){
                 best = ChoiceEV(selection, avg_ev_for_selection)
             } 
@@ -253,7 +253,7 @@ func process_dieval_combo(_ rolls_remaining :u8, _ slots_len :Int, _ slots :Slot
 }// process_dieval_combo
 
 
-func avg_ev(_ start_dievals :DieVals, _ selection :Selection, _ slots :Slots, _ upper_total :u8, 
+func avg_ev(_ start_dievals_data :u16, _ selection :Selection, _ slots :Slots, _ upper_total :u8, 
             _ next_roll :u8, _ yahtzee_bonus_available :Bool, _ ev_cache :[ChoiceEV] , _ threadid:Int) -> f32 { 
 
     var total_ev_for_selection:f32 = 0.0 ;
@@ -261,7 +261,7 @@ func avg_ev(_ start_dievals :DieVals, _ selection :Selection, _ slots :Slots, _ 
     let range = outcomes_range_for(selection);
 
     for i in range { //@inbounds @simd
-        NEWVALS_DATA_BUFFER[threadid][i] = (u16)(start_dievals.data & OUTCOME_MASK_DATA[i]);
+        NEWVALS_DATA_BUFFER[threadid][i] = (start_dievals_data & OUTCOME_MASK_DATA[i]);
         NEWVALS_DATA_BUFFER[threadid][i] |= OUTCOME_DIEVALS_DATA[i];
     } 
 
