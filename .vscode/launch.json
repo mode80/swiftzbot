@@ -7,7 +7,11 @@
             "program": "${workspaceFolder:swiftzbot}/.build/debug/swiftzbot",
             "args": [],
             "cwd": "${workspaceFolder:swiftzbot}",
-            "preLaunchTask": "swift: Build Debug swiftzbot"
+            "preLaunchTask": "swift: Build Debug swiftzbot",
+            "initCommands": [ 
+                "type summary add swiftzbot.Slots --summary-string '${var.data%b}' ", 
+                "type summary add swiftzbot.DieVals --python-script 'v = valobj.GetChildMemberWithName(\"data\").GetValueAsUnsigned(0); d1=str(v & 0b_111); d2=str((v & 0b_111_000)>>3); d3=str((v & 0b_111_000_000)>>6); d4=str((v & 0b_111_000_000_000)>>9); d5=str((v & 0b_111_000_000_000_000)>>12); return d1+d2+d3+d4+d5'" 
+            ],
         },
         {
             "type": "lldb",

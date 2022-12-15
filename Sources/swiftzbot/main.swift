@@ -77,9 +77,9 @@ func main(){
     let game = GameState( 
         DieVals(3,4,4,6,6), // five unrolled dice
         // Slots(1,2,3,4,5,6,7,8,9,10,11,12,13), // all slots in an empty scorecard
-        Slots(12), 
+        Slots(6,12), 
         0, // current upper section total
-        1, // rolls remaining
+        2, // rolls remaining
         false // yahtzee bonus available? 
     ) 
 
@@ -338,7 +338,8 @@ func cache_roll_outcomes_data() {
     let one_thru_six:[u8] = [1,2,3,4,5,6]
     for idx_combo_vec in idx_combos { 
         var dievals_vec:[DieVal] = [0,0,0,0,0] // new DieVal[5]
-        for dievals_combo_vec in combos_with_rep(one_thru_six, idx_combo_vec.count) {
+        let die_count = idx_combo_vec.count
+        for dievals_combo_vec in combos_with_rep(one_thru_six, die_count) {
             var mask_vec:[u8] = [0b111,0b111,0b111,0b111,0b111]
             for (j, val) in dievals_combo_vec.enumerated() {
                 let idx = idx_combo_vec[j]
@@ -346,10 +347,12 @@ func cache_roll_outcomes_data() {
                 mask_vec[idx]=DieVal()
             } 
             let arrangement_count = distinct_arrangements_for(dievals_combo_vec)
-            OUTCOME_DIEVALS_DATA[i] = DieVals(dievals_vec).data
-            OUTCOME_MASK_DATA[i] = DieVals(mask_vec).data
+            let dievals = DieVals(dievals_vec)
+            let mask = DieVals(mask_vec)
+            OUTCOME_DIEVALS_DATA[i] = dievals.data
+            OUTCOME_MASK_DATA[i] = mask.data
             OUTCOME_ARRANGEMENTS[i] = arrangement_count
-            OUTCOMES[i] = Outcome( DieVals(dievals_vec), DieVals(mask_vec), arrangement_count)
+            OUTCOMES[i] = Outcome( dievals, mask, arrangement_count)
             i+=1;
         } 
     } 
@@ -361,7 +364,7 @@ func init_bar_for(_ game :GameState) {
 
 func output(state :GameState, choice_ev :ChoiceEV ){ 
     // Uncomment below for more verbose progress output at the expense of speed 
-    print_state_choice(state, choice_ev)
+    // print_state_choice(state, choice_ev)
 } 
 
 
@@ -516,7 +519,7 @@ struct DieVals : Collection, CustomStringConvertible, CustomDebugStringConvertib
     init(_ args:DieVal... ) { self.init(args) }
     init(_ dievals :[DieVal] ) {
         for (i, dieval) in dievals.enumerated() { 
-            self.data |= u16( dieval << (i*3) ) 
+            self.data |= u16(dieval) << (i*3)  
         } 
     }
 
@@ -533,12 +536,10 @@ struct DieVals : Collection, CustomStringConvertible, CustomDebugStringConvertib
 
     func index(after i: Int) -> Int { return i + 1 }
 
-    //implement CustomStringConvertible protocol
-    public var description: String { 
-        return "\(self[4])\(self[3])\(self[2])\(self[1])\(self[0])"
-    }
-
     var debugDescription: String { return description }
+
+    //implement CustomStringConvertible protocol
+    public var description: String { return "\(self[4])\(self[3])\(self[2])\(self[1])\(self[0])" }
 
 }
 
@@ -836,6 +837,7 @@ struct Score {
         if (slot==CHANCE) {return chance(sorted_dievals)}  
         if (slot==YAHTZEE) {return yahtzee(sorted_dievals)}  
         assert(false) // shouldn't get here
+        return 0
     }
 
 }
