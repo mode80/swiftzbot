@@ -75,11 +75,12 @@ func main(){
 
     // print_state_choices_header();
     let game = GameState( 
-        DieVals(3,4,4,6,6), // five unrolled dice
-        // Slots(1,2,3,4,5,6,7,8,9,10,11,12,13), // all slots in an empty scorecard
-        Slots(6,12), 
+        DieVals(0,0,0,0,0), // five unrolled dice
+        // DieVals(3,4,4,6,6), // five unrolled dice
+        Slots(1,2,3,4,5,6,7,8,9,10,11,12,13), // all slots in an empty scorecard
+        // Slots(6,12), 
         0, // current upper section total
-        2, // rolls remaining
+        3, // rolls remaining
         false // yahtzee bonus available? 
     ) 
 

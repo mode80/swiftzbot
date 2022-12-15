@@ -19,7 +19,10 @@ let package = Package(
             dependencies: [
                 .product(name: "Algorithms", package: "swift-algorithms"),
                 .product(name: "Tqdm", package: "swift-tqdm"),
-             ]),
+             ],
+            swiftSettings: [
+                .unsafeFlags(["-enforce-exclusivity=none","-Ounchecked"])
+            ]),
         .testTarget(
             name: "swiftzbotTests",
             dependencies: ["swiftzbot"]),
