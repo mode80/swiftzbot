@@ -66,8 +66,6 @@ main()
 
 func main(){
 
-    // TODO enable rich object formatting for debugging https://lldb.llvm.org/use/variable.html        
-
     //load caches
     cache_selection_ranges(); 
     cache_sorted_dievals(); 
@@ -76,11 +74,9 @@ func main(){
     // print_state_choices_header();
     let game = GameState( 
         DieVals(0,0,0,0,0), // five unrolled dice
-        // DieVals(3,4,4,6,6), // five unrolled dice
         Slots(1,2,3,4,5,6,7,8,9,10,11,12,13), // all slots in an empty scorecard
-        // Slots(6,12), 
         0, // current upper section total
-        3, // rolls remaining
+        2, // rolls remaining
         false // yahtzee bonus available? 
     ) 
 
@@ -102,7 +98,7 @@ func build_cache(_ game :GameState) {
     let placeholder_dievals = DieVals()
     let placeholder_dievals_vec = [placeholder_dievals]
 
-    let false_true = [true, false] // NOTE These were stack alloc(?) tuples in Julia
+    let false_true = [false, true] // NOTE These were stack alloc(?) tuples in Julia
     let just_false = [false]
 
     // first handle special case of the most leafy leaf calcs -- where there's one slot left and no rolls remaining
@@ -184,11 +180,11 @@ func process_dieval_combo(_ rolls_remaining :u8, _ slots_len :Int, _ slots :Slot
             let passes = (slots_len==1 ? 1 : 2) // to do this, we need two passes unless there's only 1 slot left
             for i in 1...passes {
                 let slots_piece = i==1 ? Slots([head_slot]) : slots.removing(head_slot)  // work on the head only or the set of slots without the head
-                let upper_total_to_save = (upper_total_now + slots_piece.best_upper_total() >= 63) ? upper_total_now : (u8)(0)  // only relevant totals are cached
+                let relevant_upper_total = (upper_total_now + slots_piece.best_upper_total() >= 63) ? upper_total_now : (u8)(0)  // only relevant totals are cached
                 let state_to_get = GameState(
                     dievals_or_placeholder,
                     slots_piece, 
-                    upper_total_to_save,
+                    relevant_upper_total,
                     rolls_remaining_now, 
                     yahtzee_bonus_avail_now
                 )
@@ -202,7 +198,7 @@ func process_dieval_combo(_ rolls_remaining :u8, _ slots_len :Int, _ slots :Slot
                         if (choice_ev.ev>0.0) {yahtzee_bonus_avail_now=true}
                     } 
                     rolls_remaining_now=3 // for upcoming tail lookup, we always want the ev for 3 rolls remaining
-                    dievals_or_placeholder = placeholder_dievals // for 4 rolls remaining, use "wildcard" representative dievals since dice don't matter when rolling all of them
+                    dievals_or_placeholder = placeholder_dievals // for 3 rolls remaining, use "wildcard" representative dievals since dice don't matter when rolling all of them
                 }
                 head_plus_tail_ev += choice_ev.ev
             }//for i in passes 
@@ -223,7 +219,7 @@ func process_dieval_combo(_ rolls_remaining :u8, _ slots_len :Int, _ slots :Slot
             yahtzee_bonus_available
         ); 
         ev_cache[Int(state_to_set.id)] = slot_choice_ev;
-        // output_state_choice(this, state_to_set, slot_choice_ev)
+        output(state:state_to_set, choice_ev:slot_choice_ev);
 
     } else if (rolls_remaining > 0) {  
 
@@ -365,7 +361,7 @@ func init_bar_for(_ game :GameState) {
 
 func output(state :GameState, choice_ev :ChoiceEV ){ 
     // Uncomment below for more verbose progress output at the expense of speed 
-    // print_state_choice(state, choice_ev)
+        print_state_choice(state, choice_ev)
 } 
 
 
@@ -468,8 +464,7 @@ func print_state_choice(_ state :GameState , _ choice_ev: ChoiceEV ) {
     sb+=(state.upper_total.description); sb+=(C);
     sb+=(state.yahtzee_bonus_avail ? Y : N); sb+=(C);
     sb+=(state.open_slots.description); sb+=(C);
-    sb+=(choice_ev.ev.description);
-    // sb+=(C); sb+=(state.id.description);
+    sb+=String(format: "%.2f", choice_ev.ev)
     print(sb);
 } 
 
@@ -490,7 +485,7 @@ struct DieValsID {
 struct Outcome { 
     var dievals:DieVals = DieVals()
     var mask:DieVals = DieVals()// stores a pre-made mask for blitting this outcome onto a GameState.DieVals.data u16 later
-    var arrangements:f32 = 0.0 // how many indistinguisable ways can these dievals be arranged (ie swapping identical dievals)
+    var arrangements:f32 = 0.0 // how many distinguisable ways can these dievals be arranged (ie swapping identical dievals)
     init() { } 
     init(_ dievals:DieVals, _ mask:DieVals, _ arrangements:f32) { 
         self.dievals = dievals 
